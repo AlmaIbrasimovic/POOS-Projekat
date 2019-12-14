@@ -62,7 +62,7 @@ def main():
 
         drawRedRectangleAroundPlate(imgOriginalScene, licPlate)             # draw red rectangle around plate
 
-        print("\nlicense plate read from image = " + licPlate.strChars + "\n")  # write license plate text to std out
+        print("\nRegistarska oznaka prepoznata sa slike = " + licPlate.strChars + "\n")  # write license plate text to std out
         print("----------------------------------------")
 
         writeLicensePlateCharsOnImage(imgOriginalScene, licPlate)           # write license plate text on the image
