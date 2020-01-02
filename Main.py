@@ -1,12 +1,70 @@
 # Main.py
+# Zakomentarisane linije 118 i 119 (Alma) --- pomocni prozori prilikom obrade (smetaju)
 
 import cv2
 import numpy as np
 import os
+import sys
+from PyQt5.QtWidgets import QWidget, QDesktopWidget, QApplication, QPushButton, QFileDialog, QLabel, QHBoxLayout
+from PyQt5.QtCore import pyqtSlot, QObject, Qt
+from PyQt5.QtGui import QIcon, QPixmap, QPalette
+from tkinter import messagebox
+import ctypes 
 
 import DetectChars
 import DetectPlates
 import PossiblePlate
+
+class App(QWidget):
+	def __init__(self): #Konstruktor
+		super().__init__()
+		self.initUI()
+		self.putanja = ""
+
+	def getPutanja(self):
+		return self.putanja
+
+	def setPutanja(self, putanja):
+		self.putanja = putanja
+
+	def initUI(self):
+		self.setWindowTitle('Učitavanje slika')
+		self.setFixedSize(500,400)
+
+		# Postavke za button A
+		button_A = QPushButton('Učitaj sliku registarske tablice',self)
+		button_A.setToolTip('Dugme za ucitavanje slike registarskih tablica!')
+		button_A.move(145,100)
+		button_A.setFixedSize(190,50)
+
+		# Postavke za button B
+		button_B = QPushButton('Ugasi aplikaciju',self)
+		button_B.setToolTip('Dugme za gašenje aplikacije!')
+		button_B.move(145,200)
+		button_B.setFixedSize(190,50)
+		button_B.clicked.connect(self.close)
+	
+		button_A.clicked.connect(self.ucitajSliku) # Povezivanje klika sa funkcijom
+		self.center() 
+		self.show()
+
+	@pyqtSlot() # Funkcija za ucitavanje slike
+	def ucitajSliku(self):
+		a = self.kreirajDijalog()
+		return a
+		
+	def center(self): # Da bi pozicionirali ne sredinu ekrana
+		qr = self.frameGeometry()
+		cp = QDesktopWidget().availableGeometry().center()
+		qr.moveCenter(cp)
+		self.move(qr.topLeft())
+	
+	def kreirajDijalog(self):
+		options = QFileDialog.Options()
+		hbox = QHBoxLayout(self)
+		files = QFileDialog.getOpenFileName(self, "Učitaj sliku", "", "JPG (*.jpg);;PNG (*.png)")
+		self.setPutanja(files[0])
+		if files[0] : self.close() # Provjera da li se učitala slika
 
 # module level variables ##########################################################################
 SCALAR_BLACK = (0.0, 0.0, 0.0)
@@ -23,14 +81,19 @@ def main():
     blnKNNTrainingSuccessful = DetectChars.loadKNNDataAndTrainKNN()         # attempt KNN training
 
     if blnKNNTrainingSuccessful == False:                               # if KNN training was not successful
-        print("\nerror: KNN traning was not successful\n")  # show error message
+        print("\nGreska: KNN treniranje nije uspjesno!\n")  # show error message
         return                                                          # and exit program
     # end if
 
-    imgOriginalScene  = cv2.imread("LicPlateImages/16.jpg")               # open image
+    app = QApplication(sys.argv)
+    w = QWidget()
+    program = App()
+    app.setStyle("Fusion")
+    app.exec_()
+    imgOriginalScene  = cv2.imread(program.getPutanja())               # open image
 
     if imgOriginalScene is None:                            # if image was not read successfully
-        print("\nerror: image not read from file \n\n")  # print error message to std out
+        print("\nGreska: slika nije ucitana!\n\n")  # print error message to std out
         os.system("pause")                                  # pause so user can see error message
         return                                              # and exit program
     # end if
@@ -38,11 +101,10 @@ def main():
     listOfPossiblePlates = DetectPlates.detectPlatesInScene(imgOriginalScene)           # detect plates
 
     listOfPossiblePlates = DetectChars.detectCharsInPlates(listOfPossiblePlates)        # detect chars in plates
-
     cv2.imshow("imgOriginalScene", imgOriginalScene)            # show scene image
 
     if len(listOfPossiblePlates) == 0:                          # if no plates were found
-        print("\nno license plates were detected\n")  # inform user no plates were found
+        print("\nNije detektovana niti jedna registarska tablica!\n")  # inform user no plates were found
     else:                                                       # else
                 # if we get in here list of possible plates has at leat one plate
 
@@ -52,24 +114,27 @@ def main():
                 # suppose the plate with the most recognized chars (the first plate in sorted by string length descending order) is the actual plate
         licPlate = listOfPossiblePlates[0]
 
-        cv2.imshow("imgPlate", licPlate.imgPlate)           # show crop of plate and threshold of plate
-        cv2.imshow("imgThresh", licPlate.imgThresh)
+        # Pomocni prozori koji nisu potrebni, ali moze se upaliti ako treba
+        #cv2.imshow("imgPlate", licPlate.imgPlate)           # show crop of plate and threshold of plate
+        #cv2.imshow("imgThresh", licPlate.imgThresh)
 
         if len(licPlate.strChars) == 0:                     # if no chars were found in the plate
-            print("\nno characters were detected\n\n")  # show message
+            print("\nNisu detektovani karakteri!\n\n")  # show message
             return                                          # and exit program
         # end if
 
         drawRedRectangleAroundPlate(imgOriginalScene, licPlate)             # draw red rectangle around plate
 
-        print("\nRegistarska oznaka prepoznata sa slike = " + licPlate.strChars + "\n")  # write license plate text to std out
+        
+        #print("\nRegistarska tablica prepoznata sa slike = " + licPlate.strChars + "\n")  # write license plate text to std out
         print("----------------------------------------")
 
         writeLicensePlateCharsOnImage(imgOriginalScene, licPlate)           # write license plate text on the image
 
         cv2.imshow("imgOriginalScene", imgOriginalScene)                # re-show scene image
 
-        cv2.imwrite("imgOriginalScene.png", imgOriginalScene)           # write image out to file
+        cv2.imwrite("imgOriginalScene.png", imgOriginalScene)           # write image out to file 
+        ctypes.windll.user32.MessageBoxW(0, "Registarska tablica prepoznata sa slike = " + licPlate.strChars, "Tablica")
 
     # end if else
 
