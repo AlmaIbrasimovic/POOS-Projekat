@@ -14,7 +14,7 @@ import PossibleChar
 
 kNearest = cv2.ml.KNearest_create()
 
-        # constants for checkIfPossibleChar, this checks one possible char only (does not compare to another char)
+        # konstante za checkIfPossibleChar, provjerava samo jedan char (ne poredi sa drugim charom)
 MIN_PIXEL_WIDTH = 2
 MIN_PIXEL_HEIGHT = 8
 
@@ -23,7 +23,7 @@ MAX_ASPECT_RATIO = 1.0
 
 MIN_PIXEL_AREA = 80
 
-        # constants for comparing two chars
+        # konstante za poredenje dva chara
 MIN_DIAG_SIZE_MULTIPLE_AWAY = 0.3
 MAX_DIAG_SIZE_MULTIPLE_AWAY = 5.0
 
@@ -34,7 +34,7 @@ MAX_CHANGE_IN_HEIGHT = 0.2
 
 MAX_ANGLE_BETWEEN_CHARS = 12.0
 
-        # other constants
+        # ostale konstante
 MIN_NUMBER_OF_MATCHING_CHARS = 3
 
 RESIZED_CHAR_IMAGE_WIDTH = 20
@@ -44,32 +44,32 @@ MIN_CONTOUR_AREA = 100
 
 ###################################################################################################
 def loadKNNDataAndTrainKNN():
-    allContoursWithData = []                # declare empty lists,
-    validContoursWithData = []              # we will fill these shortly
+    allContoursWithData = []                # prazne liste
+    validContoursWithData = []              
 
     try:
-        npaClassifications = np.loadtxt("classifications.txt", np.float32)                  # read in training classifications
-    except:                                                                                 # if file could not be opened
-        print("error, unable to open classifications.txt, exiting program\n")  # show error message
+        npaClassifications = np.loadtxt("classifications.txt", np.float32)                  # ucitati klasifikacije za treniranje
+    except:                                                                                 
+        print("error, unable to open classifications.txt, exiting program\n") 
         os.system("pause")
-        return False                                                                        # and return False
+        return False                                                                        
     # end try
 
     try:
-        npaFlattenedImages = np.loadtxt("flattened_images.txt", np.float32)                 # read in training images
-    except:                                                                                 # if file could not be opened
-        print("error, unable to open flattened_images.txt, exiting program\n")  # show error message
+        npaFlattenedImages = np.loadtxt("flattened_images.txt", np.float32)                 # ucitati treniranje za slike
+    except:                                                                                 
+        print("error, unable to open flattened_images.txt, exiting program\n")  
         os.system("pause")
-        return False                                                                        # and return False
+        return False                                                                        
     # end try
 
-    npaClassifications = npaClassifications.reshape((npaClassifications.size, 1))       # reshape numpy array to 1d, necessary to pass to call to train
+    npaClassifications = npaClassifications.reshape((npaClassifications.size, 1))       # pretvoriti numpy niz u 1d, neohodno za treniranje
 
-    kNearest.setDefaultK(1)                                                             # set default K to 1
+    kNearest.setDefaultK(1)                                                             # postaviti pocetni K na 1
 
-    kNearest.train(npaFlattenedImages, cv2.ml.ROW_SAMPLE, npaClassifications)           # train KNN object
+    kNearest.train(npaFlattenedImages, cv2.ml.ROW_SAMPLE, npaClassifications)           # treniranje knn objekta
 
-    return True                             # if we got here training was successful so return true
+    return True               
 # end function
 
 ###################################################################################################
@@ -78,40 +78,37 @@ def detectCharsInPlates(listOfPossiblePlates):
     imgContours = None
     contours = []
 
-    if len(listOfPossiblePlates) == 0:          # if list of possible plates is empty
+    if len(listOfPossiblePlates) == 0:          # ukoliko je lista mogucih tablica prazna
         return listOfPossiblePlates             # return
     # end if
 
-            # at this point we can be sure the list of possible plates has at least one plate
+    for possiblePlate in listOfPossiblePlates:          # za svaku mogucu tablicu
 
-    for possiblePlate in listOfPossiblePlates:          # for each possible plate, this is a big for loop that takes up most of the function
+        possiblePlate.imgGrayscale, possiblePlate.imgThresh = Preprocess.preprocess(possiblePlate.imgPlate)     # predprocesi da se dobiju grayscale i threshold slike
 
-        possiblePlate.imgGrayscale, possiblePlate.imgThresh = Preprocess.preprocess(possiblePlate.imgPlate)     # preprocess to get grayscale and threshold images
-
-        if Main.showSteps == True: # show steps ###################################################
+        if Main.showSteps == True: # prikazi korake 
             cv2.imshow("5a", possiblePlate.imgPlate)
             cv2.imshow("5b", possiblePlate.imgGrayscale)
             cv2.imshow("5c", possiblePlate.imgThresh)
-        # end if # show steps #####################################################################
+        # end if
 
-                # increase size of plate image for easier viewing and char detection
+                # povecati velicinu slike da bi se bolje vidjelo i lakse detektovali charovi
         possiblePlate.imgThresh = cv2.resize(possiblePlate.imgThresh, (0, 0), fx = 1.6, fy = 1.6)
 
-                # threshold again to eliminate any gray areas
+                # threshold  ponovo da bi se otklonile sive povrsine
         thresholdValue, possiblePlate.imgThresh = cv2.threshold(possiblePlate.imgThresh, 0.0, 255.0, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
 
-        if Main.showSteps == True: # show steps ###################################################
+        if Main.showSteps == True: 
             cv2.imshow("5d", possiblePlate.imgThresh)
-        # end if # show steps #####################################################################
 
-                # find all possible chars in the plate,
-                # this function first finds all contours, then only includes contours that could be chars (without comparison to other chars yet)
+                # pronalazi sve moguce charove na slici
+                # ova funkcija prvo pronalazi sve konture, i onda samo ukljucuje konture koje bi mogle biti charovi
         listOfPossibleCharsInPlate = findPossibleCharsInPlate(possiblePlate.imgGrayscale, possiblePlate.imgThresh)
 
-        if Main.showSteps == True: # show steps ###################################################
+        if Main.showSteps == True:
             height, width, numChannels = possiblePlate.imgPlate.shape
             imgContours = np.zeros((height, width, 3), np.uint8)
-            del contours[:]                                         # clear the contours list
+            del contours[:]                                         # ocistiti listu kontura
 
             for possibleChar in listOfPossibleCharsInPlate:
                 contours.append(possibleChar.contour)
@@ -120,12 +117,12 @@ def detectCharsInPlates(listOfPossiblePlates):
             cv2.drawContours(imgContours, contours, -1, Main.SCALAR_WHITE)
 
             cv2.imshow("6", imgContours)
-        # end if # show steps #####################################################################
+        # end if #
 
-                # given a list of all possible chars, find groups of matching chars within the plate
+                # nakon sto imamo listu svih mogucih charova, pronaci grupu slicnih charova na slici
         listOfListsOfMatchingCharsInPlate = findListOfListsOfMatchingChars(listOfPossibleCharsInPlate)
 
-        if Main.showSteps == True: # show steps ###################################################
+        if Main.showSteps == True:
             imgContours = np.zeros((height, width, 3), np.uint8)
             del contours[:]
 
@@ -140,11 +137,11 @@ def detectCharsInPlates(listOfPossiblePlates):
                 cv2.drawContours(imgContours, contours, -1, (intRandomBlue, intRandomGreen, intRandomRed))
             # end for
             cv2.imshow("7", imgContours)
-        # end if # show steps #####################################################################
+        # end if
 
-        if (len(listOfListsOfMatchingCharsInPlate) == 0):			# if no groups of matching chars were found in the plate
+        if (len(listOfListsOfMatchingCharsInPlate) == 0):			# ukoliko nisu pronadene grupe slicnih charova
 
-            if Main.showSteps == True: # show steps ###############################################
+            if Main.showSteps == True: 
                 print("chars found in plate number " + str(
                     intPlateCounter) + " = (none), click on any image and press a key to continue . . .")
                 intPlateCounter = intPlateCounter + 1
@@ -152,18 +149,18 @@ def detectCharsInPlates(listOfPossiblePlates):
                 cv2.destroyWindow("9")
                 cv2.destroyWindow("10")
                 cv2.waitKey(0)
-            # end if # show steps #################################################################
+            # end if
 
             possiblePlate.strChars = ""
-            continue						# go back to top of for loop
+            continue						# vracanje na pocetak for petlje
         # end if
 
-        for i in range(0, len(listOfListsOfMatchingCharsInPlate)):                              # within each list of matching chars
-            listOfListsOfMatchingCharsInPlate[i].sort(key = lambda matchingChar: matchingChar.intCenterX)        # sort chars from left to right
-            listOfListsOfMatchingCharsInPlate[i] = removeInnerOverlappingChars(listOfListsOfMatchingCharsInPlate[i])              # and remove inner overlapping chars
+        for i in range(0, len(listOfListsOfMatchingCharsInPlate)):                              
+            listOfListsOfMatchingCharsInPlate[i].sort(key = lambda matchingChar: matchingChar.intCenterX)        # sortirati charova s lijeva na desno
+            listOfListsOfMatchingCharsInPlate[i] = removeInnerOverlappingChars(listOfListsOfMatchingCharsInPlate[i])              # i ukloniti charove koji se preklapaju
         # end for
 
-        if Main.showSteps == True: # show steps ###################################################
+        if Main.showSteps == True:
             imgContours = np.zeros((height, width, 3), np.uint8)
 
             for listOfMatchingChars in listOfListsOfMatchingCharsInPlate:
@@ -180,13 +177,12 @@ def detectCharsInPlates(listOfPossiblePlates):
                 cv2.drawContours(imgContours, contours, -1, (intRandomBlue, intRandomGreen, intRandomRed))
             # end for
             cv2.imshow("8", imgContours)
-        # end if # show steps #####################################################################
+        # end if
 
-                # within each possible plate, suppose the longest list of potential matching chars is the actual list of chars
         intLenOfLongestListOfChars = 0
         intIndexOfLongestListOfChars = 0
 
-                # loop through all the vectors of matching chars, get the index of the one with the most chars
+                # proci petljom kroz sve vektore poklapajucih charova i uzeti indeks onog koji se najvise poklapa
         for i in range(0, len(listOfListsOfMatchingCharsInPlate)):
             if len(listOfListsOfMatchingCharsInPlate[i]) > intLenOfLongestListOfChars:
                 intLenOfLongestListOfChars = len(listOfListsOfMatchingCharsInPlate[i])
@@ -194,10 +190,9 @@ def detectCharsInPlates(listOfPossiblePlates):
             # end if
         # end for
 
-                # suppose that the longest list of matching chars within the plate is the actual list of chars
         longestListOfMatchingCharsInPlate = listOfListsOfMatchingCharsInPlate[intIndexOfLongestListOfChars]
 
-        if Main.showSteps == True: # show steps ###################################################
+        if Main.showSteps == True: 
             imgContours = np.zeros((height, width, 3), np.uint8)
             del contours[:]
 
@@ -208,18 +203,16 @@ def detectCharsInPlates(listOfPossiblePlates):
             cv2.drawContours(imgContours, contours, -1, Main.SCALAR_WHITE)
 
             cv2.imshow("9", imgContours)
-        # end if # show steps #####################################################################
+        # end if
 
         possiblePlate.strChars = recognizeCharsInPlate(possiblePlate.imgThresh, longestListOfMatchingCharsInPlate)
 
-        if Main.showSteps == True: # show steps ###################################################
+        if Main.showSteps == True:
             print("chars found in plate number " + str(
                 intPlateCounter) + " = " + possiblePlate.strChars + ", click on any image and press a key to continue . . .")
             intPlateCounter = intPlateCounter + 1
             cv2.waitKey(0)
-        # end if # show steps #####################################################################
-
-    # end of big for loop that takes up most of the function
+        # end if 
 
     if Main.showSteps == True:
         print("\nchar detection complete, click on any image and press a key to continue . . .\n")
@@ -231,18 +224,18 @@ def detectCharsInPlates(listOfPossiblePlates):
 
 ###################################################################################################
 def findPossibleCharsInPlate(imgGrayscale, imgThresh):
-    listOfPossibleChars = []                        # this will be the return value
+    listOfPossibleChars = []                        # povratna vrijednost
     contours = []
     imgThreshCopy = imgThresh.copy()
 
-            # find all contours in plate
+            # pronalazak svih kontura na slici
     contours, npaHierarchy = cv2.findContours(imgThreshCopy, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
-    for contour in contours:                        # for each contour
+    for contour in contours:                        # za svaku konturu
         possibleChar = PossibleChar.PossibleChar(contour)
 
-        if checkIfPossibleChar(possibleChar):              # if contour is a possible char, note this does not compare to other chars (yet) . . .
-            listOfPossibleChars.append(possibleChar)       # add to list of possible chars
+        if checkIfPossibleChar(possibleChar):
+            listOfPossibleChars.append(possibleChar)
         # end if
     # end if
 
@@ -251,8 +244,8 @@ def findPossibleCharsInPlate(imgGrayscale, imgThresh):
 
 ###################################################################################################
 def checkIfPossibleChar(possibleChar):
-            # this function is a 'first pass' that does a rough check on a contour to see if it could be a char,
-            # note that we are not (yet) comparing the char to other chars to look for a group
+            # provjerava za svaku konturu da li je moguci char
+            # jos uvijek se ne porede dva chara za slicnost
     if (possibleChar.intBoundingRectArea > MIN_PIXEL_AREA and
         possibleChar.intBoundingRectWidth > MIN_PIXEL_WIDTH and possibleChar.intBoundingRectHeight > MIN_PIXEL_HEIGHT and
         MIN_ASPECT_RATIO < possibleChar.fltAspectRatio and possibleChar.fltAspectRatio < MAX_ASPECT_RATIO):
@@ -264,34 +257,28 @@ def checkIfPossibleChar(possibleChar):
 
 ###################################################################################################
 def findListOfListsOfMatchingChars(listOfPossibleChars):
-            # with this function, we start off with all the possible chars in one big list
-            # the purpose of this function is to re-arrange the one big list of chars into a list of lists of matching chars,
-            # note that chars that are not found to be in a group of matches do not need to be considered further
-    listOfListsOfMatchingChars = []                  # this will be the return value
+            # cilj funkcije je da se jedna velika lista charova podijeli u listu lista
+    listOfListsOfMatchingChars = []
 
-    for possibleChar in listOfPossibleChars:                        # for each possible char in the one big list of chars
-        listOfMatchingChars = findListOfMatchingChars(possibleChar, listOfPossibleChars)        # find all chars in the big list that match the current char
+    for possibleChar in listOfPossibleChars:                      
+        listOfMatchingChars = findListOfMatchingChars(possibleChar, listOfPossibleChars)        # pronaci svaki char, u velikoj listi, koji je isti charu koji se posmatra
 
-        listOfMatchingChars.append(possibleChar)                # also add the current char to current possible list of matching chars
+        listOfMatchingChars.append(possibleChar)                # dodati trenutni char u listu mogucih charova
 
-        if len(listOfMatchingChars) < MIN_NUMBER_OF_MATCHING_CHARS:     # if current possible list of matching chars is not long enough to constitute a possible plate
-            continue                            # jump back to the top of the for loop and try again with next char, note that it's not necessary
-                                                # to save the list in any way since it did not have enough chars to be a possible plate
-        # end if
-
-                                                # if we get here, the current list passed test as a "group" or "cluster" of matching chars
-        listOfListsOfMatchingChars.append(listOfMatchingChars)      # so add to our list of lists of matching chars
-
+        if len(listOfMatchingChars) < MIN_NUMBER_OF_MATCHING_CHARS:    
+            continue                                                                          
+        # end if                                              
+        listOfListsOfMatchingChars.append(listOfMatchingChars)  
         listOfPossibleCharsWithCurrentMatchesRemoved = []
 
-                                                # remove the current list of matching chars from the big list so we don't use those same chars twice,
-                                                # make sure to make a new big list for this since we don't want to change the original big list
+        # ukloniti trenutnu listu mogucih charova iz velike liste, da ih ne koristimo dva puta
+        # koristi se nova velika lista, ne dira se stara
         listOfPossibleCharsWithCurrentMatchesRemoved = list(set(listOfPossibleChars) - set(listOfMatchingChars))
 
-        recursiveListOfListsOfMatchingChars = findListOfListsOfMatchingChars(listOfPossibleCharsWithCurrentMatchesRemoved)      # recursive call
+        recursiveListOfListsOfMatchingChars = findListOfListsOfMatchingChars(listOfPossibleCharsWithCurrentMatchesRemoved)      # rekurzivni poziv
 
-        for recursiveListOfMatchingChars in recursiveListOfListsOfMatchingChars:        # for each list of matching chars found by recursive call
-            listOfListsOfMatchingChars.append(recursiveListOfMatchingChars)             # add to our original list of lists of matching chars
+        for recursiveListOfMatchingChars in recursiveListOfListsOfMatchingChars:        # za svaku listu podudarajucih charova, dobivenih iz rekurzivnog poziva
+            listOfListsOfMatchingChars.append(recursiveListOfMatchingChars)             # dodati na originalnu listu, nove liste podudarajucih charova
         # end for
 
         break       # exit for
@@ -303,22 +290,17 @@ def findListOfListsOfMatchingChars(listOfPossibleChars):
 
 ###################################################################################################
 def findListOfMatchingChars(possibleChar, listOfChars):
-            # the purpose of this function is, given a possible char and a big list of possible chars,
-            # find all chars in the big list that are a match for the single possible char, and return those matching chars as a list
-    listOfMatchingChars = []                # this will be the return value
+            # cilj ove funkcije je ukoliko imamo moguci char i listu svih mogucih charova,
+            # pronaci sve charove u listi koji su isti posmatranom, i vratiti te charove kao listu
+    listOfMatchingChars = []                # povratna vrijednost
 
-    for possibleMatchingChar in listOfChars:                # for each char in big list
-        if possibleMatchingChar == possibleChar:    # if the char we attempting to find matches for is the exact same char as the char in the big list we are currently checking
-                                                    # then we should not include it in the list of matches b/c that would end up double including the current char
-            continue                                # so do not add to list of matches and jump back to top of for loop
+    for possibleMatchingChar in listOfChars:
+        if possibleMatchingChar == possibleChar:                                                    
+            continue                               
         # end if
-                    # compute stuff to see if chars are a match
         fltDistanceBetweenChars = distanceBetweenChars(possibleChar, possibleMatchingChar)
-
         fltAngleBetweenChars = angleBetweenChars(possibleChar, possibleMatchingChar)
-
         fltChangeInArea = float(abs(possibleMatchingChar.intBoundingRectArea - possibleChar.intBoundingRectArea)) / float(possibleChar.intBoundingRectArea)
-
         fltChangeInWidth = float(abs(possibleMatchingChar.intBoundingRectWidth - possibleChar.intBoundingRectWidth)) / float(possibleChar.intBoundingRectWidth)
         fltChangeInHeight = float(abs(possibleMatchingChar.intBoundingRectHeight - possibleChar.intBoundingRectHeight)) / float(possibleChar.intBoundingRectHeight)
 
@@ -329,15 +311,15 @@ def findListOfMatchingChars(possibleChar, listOfChars):
             fltChangeInWidth < MAX_CHANGE_IN_WIDTH and
             fltChangeInHeight < MAX_CHANGE_IN_HEIGHT):
 
-            listOfMatchingChars.append(possibleMatchingChar)        # if the chars are a match, add the current char to list of matching chars
+            listOfMatchingChars.append(possibleMatchingChar)        # ukoliko se dva chara podudaraju, dodati trenutni char u listu svih charova
         # end if
     # end for
 
-    return listOfMatchingChars                  # return result
+    return listOfMatchingChars                 
 # end function
 
 ###################################################################################################
-# use Pythagorean theorem to calculate distance between two chars
+# Pitagorina teorema da se izracuna udaljenost izmedu dva chara
 def distanceBetweenChars(firstChar, secondChar):
     intX = abs(firstChar.intCenterX - secondChar.intCenterX)
     intY = abs(firstChar.intCenterY - secondChar.intCenterY)
@@ -346,43 +328,40 @@ def distanceBetweenChars(firstChar, secondChar):
 # end function
 
 ###################################################################################################
-# use basic trigonometry (SOH CAH TOA) to calculate angle between chars
+# obicna trigonometrija (SOH CAH TOA) da se izracuna ugao izmedu charova
 def angleBetweenChars(firstChar, secondChar):
     fltAdj = float(abs(firstChar.intCenterX - secondChar.intCenterX))
     fltOpp = float(abs(firstChar.intCenterY - secondChar.intCenterY))
 
-    if fltAdj != 0.0:                           # check to make sure we do not divide by zero if the center X positions are equal, float division by zero will cause a crash in Python
-        fltAngleInRad = math.atan(fltOpp / fltAdj)      # if adjacent is not zero, calculate angle
+    if fltAdj != 0.0:                           # provjera da se ne dijeli sa 0
+        fltAngleInRad = math.atan(fltOpp / fltAdj)    
     else:
-        fltAngleInRad = 1.5708                          # if adjacent is zero, use this as the angle, this is to be consistent with the C++ version of this program
+        fltAngleInRad = 1.5708             
     # end if
 
-    fltAngleInDeg = fltAngleInRad * (180.0 / math.pi)       # calculate angle in degrees
+    fltAngleInDeg = fltAngleInRad * (180.0 / math.pi)       # izracunati ugao u stepenima
 
     return fltAngleInDeg
 # end function
 
 ###################################################################################################
-# if we have two chars overlapping or to close to each other to possibly be separate chars, remove the inner (smaller) char,
-# this is to prevent including the same char twice if two contours are found for the same char,
-# for example for the letter 'O' both the inner ring and the outer ring may be found as contours, but we should only include the char once
+# ukoliko se dva chara preklapaju, treba ukloniti onaj manji
 def removeInnerOverlappingChars(listOfMatchingChars):
-    listOfMatchingCharsWithInnerCharRemoved = list(listOfMatchingChars)                # this will be the return value
+    listOfMatchingCharsWithInnerCharRemoved = list(listOfMatchingChars)                
 
     for currentChar in listOfMatchingChars:
         for otherChar in listOfMatchingChars:
-            if currentChar != otherChar:        # if current char and other char are not the same char . . .
-                                                                            # if current char and other char have center points at almost the same location . . .
+            if currentChar != otherChar:        # ukoliko trenutni char i drugi nisu isti                                       
                 if distanceBetweenChars(currentChar, otherChar) < (currentChar.fltDiagonalSize * MIN_DIAG_SIZE_MULTIPLE_AWAY):
-                                # if we get in here we have found overlapping chars
-                                # next we identify which char is smaller, then if that char was not already removed on a previous pass, remove it
-                    if currentChar.intBoundingRectArea < otherChar.intBoundingRectArea:         # if current char is smaller than other char
-                        if currentChar in listOfMatchingCharsWithInnerCharRemoved:              # if current char was not already removed on a previous pass . . .
-                            listOfMatchingCharsWithInnerCharRemoved.remove(currentChar)         # then remove current char
+                                # pronadeni su preklapajuci charovi
+                                # pronademo koji je char manji, ukoliko nije uklonjen ranije, uklonimo ga sad
+                    if currentChar.intBoundingRectArea < otherChar.intBoundingRectArea:         # ukoliko je trenutni char manji od drugih
+                        if currentChar in listOfMatchingCharsWithInnerCharRemoved:              # ukoliko trenutni char nije uklonjen u prethodnom prolazu
+                            listOfMatchingCharsWithInnerCharRemoved.remove(currentChar)         # ukloni sad
                         # end if
-                    else:                                                                       # else if other char is smaller than current char
-                        if otherChar in listOfMatchingCharsWithInnerCharRemoved:                # if other char was not already removed on a previous pass . . .
-                            listOfMatchingCharsWithInnerCharRemoved.remove(otherChar)           # then remove other char
+                    else:                                                                       # ukoliko je trenutni char manji od drugih
+                        if otherChar in listOfMatchingCharsWithInnerCharRemoved:                # ukoliko drugi char nije uklonjen u prethodnom prolazu
+                            listOfMatchingCharsWithInnerCharRemoved.remove(otherChar)           # ukloni drugi char
                         # end if
                     # end if
                 # end if
@@ -394,46 +373,44 @@ def removeInnerOverlappingChars(listOfMatchingChars):
 # end function
 
 ###################################################################################################
-# this is where we apply the actual char recognition
+# prepoznavanje charova
 def recognizeCharsInPlate(imgThresh, listOfMatchingChars):
-    strChars = ""               # this will be the return value, the chars in the lic plate
+    strChars = ""
 
     height, width = imgThresh.shape
 
     imgThreshColor = np.zeros((height, width, 3), np.uint8)
 
-    listOfMatchingChars.sort(key = lambda matchingChar: matchingChar.intCenterX)        # sort chars from left to right
+    listOfMatchingChars.sort(key = lambda matchingChar: matchingChar.intCenterX)        # sortirati charove s lijeva na desno
 
-    cv2.cvtColor(imgThresh, cv2.COLOR_GRAY2BGR, imgThreshColor)                     # make color version of threshold image so we can draw contours in color on it
+    cv2.cvtColor(imgThresh, cv2.COLOR_GRAY2BGR, imgThreshColor)                     # napraviti threshold sliku u boji tako da mozemo nacrtati konturu
 
-    for currentChar in listOfMatchingChars:                                         # for each char in plate
+    for currentChar in listOfMatchingChars:                                   
         pt1 = (currentChar.intBoundingRectX, currentChar.intBoundingRectY)
         pt2 = ((currentChar.intBoundingRectX + currentChar.intBoundingRectWidth), (currentChar.intBoundingRectY + currentChar.intBoundingRectHeight))
 
-        cv2.rectangle(imgThreshColor, pt1, pt2, Main.SCALAR_GREEN, 2)           # draw green box around the char
+        cv2.rectangle(imgThreshColor, pt1, pt2, Main.SCALAR_GREEN, 2)           # zeleni kvadrat oko chara
 
-                # crop char out of threshold image
+                # izrezati char iz slike
         imgROI = imgThresh[currentChar.intBoundingRectY : currentChar.intBoundingRectY + currentChar.intBoundingRectHeight,
                            currentChar.intBoundingRectX : currentChar.intBoundingRectX + currentChar.intBoundingRectWidth]
 
-        imgROIResized = cv2.resize(imgROI, (RESIZED_CHAR_IMAGE_WIDTH, RESIZED_CHAR_IMAGE_HEIGHT))           # resize image, this is necessary for char recognition
+        imgROIResized = cv2.resize(imgROI, (RESIZED_CHAR_IMAGE_WIDTH, RESIZED_CHAR_IMAGE_HEIGHT))     
 
-        npaROIResized = imgROIResized.reshape((1, RESIZED_CHAR_IMAGE_WIDTH * RESIZED_CHAR_IMAGE_HEIGHT))        # flatten image into 1d numpy array
+        npaROIResized = imgROIResized.reshape((1, RESIZED_CHAR_IMAGE_WIDTH * RESIZED_CHAR_IMAGE_HEIGHT))    
 
-        npaROIResized = np.float32(npaROIResized)               # convert from 1d numpy array of ints to 1d numpy array of floats
+        npaROIResized = np.float32(npaROIResized)              
 
-        retval, npaResults, neigh_resp, dists = kNearest.findNearest(npaROIResized, k = 1)              # finally we can call findNearest !!!
+        retval, npaResults, neigh_resp, dists = kNearest.findNearest(npaROIResized, k = 1)            
 
-        strCurrentChar = str(chr(int(npaResults[0][0])))            # get character from results
+        strCurrentChar = str(chr(int(npaResults[0][0])))            
 
-        strChars = strChars + strCurrentChar                        # append current char to full string
+        strChars = strChars + strCurrentChar                        # dodati trenutni char na string
 
     # end for
 
-    if Main.showSteps == True: # show steps #######################################################
+    if Main.showSteps == True: 
         cv2.imshow("10", imgThreshColor)
-    # end if # show steps #########################################################################
-
     return strChars
 # end function
 
