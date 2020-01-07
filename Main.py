@@ -98,7 +98,7 @@ def main():
     listOfPossiblePlates = DetectPlates.detectPlatesInScene(imgOriginalScene)           # detekcija tablica
 
     listOfPossiblePlates = DetectChars.detectCharsInPlates(listOfPossiblePlates)        # detekcija charova u tablicama 
-    cv2.imshow("imgOriginalScene", imgOriginalScene)         
+    cv2.imshow("Registarska tablica", imgOriginalScene)         
 
     if len(listOfPossiblePlates) == 0:                          # ukoliko se nije pronasla niti jedna tablica
         print("\nNije detektovana niti jedna registarska tablica!\n")  
@@ -123,7 +123,7 @@ def main():
 
         writeLicensePlateCharsOnImage(imgOriginalScene, licPlate)        
 
-        cv2.imshow("imgOriginalScene", imgOriginalScene)              
+        cv2.imshow("Registarska tablica", imgOriginalScene)              
 
         cv2.imwrite("imgOriginalScene.png", imgOriginalScene)           
         ctypes.windll.user32.MessageBoxW(0, "Registarska tablica prepoznata sa slike = " + licPlate.strChars, "Tablica")
